@@ -1,0 +1,44 @@
+List of useful activation and cost functions
+
+ACTIVATION FUNCTIONS:
+
+sigmoid: 1/(1+e^-x)   deriv: s*(1-s) (for fast computation)
+If you take something like 1/(1+e^(-ax)), then deriv is s*(1-s)*a
+basically transforms real numbers into probability from 0 to 1
+
+softmax: e^x/sum e^x    deriv: s*(1-s) (yay again)
+used as last layer to basically transform data, squishing it into relative 0 to 1 but accentuating differences
+very good for classification problems
+
+logit: ln(x/(1-x))    deriv: 1/(x*(1-x))
+Inverse of sigmoid function 
+used as activation for last layer to transform probability into real number
+
+tanh (hyperbolic tangent): (e^x-e^-x)/(e^x+e^-x)  deriv: 1-tanh^2=sech^2
+sorta like sigmoid except it goes from -1 to 1 and grows a bit faster in the middle. Reaches peak earlier
+
+relu (rectified linear units): x for x>0, else 0    deriv: 1 for x>0, else 0
+learns faster than sigmoid on classification problems, mimicks neurons being "on" or "off" rather
+than distribution (though I don't know what's really more representative)
+Be very careful of overflow. Generally have to set initial weights fairly low, especially if using softmax
+A few variants where the off section isn't completely off but still piecewise and grows slower
+
+
+COST FUNCTIONS:
+
+sparse categorical crossentropy: - sum out nodes of desired[i]*ln(a[i])
+frequently used with softmax function
+deriv w/o softmax: -desired[i]/a
+deriv w/ softmax: softmax[i] - desired[i] 
+
+binary crossentropy (supposedly a special case but im not sure then if my sparse is wrong):
+sum -desired[i](ln(a[i])) - (1-desired[i])(ln(1-a[i])) #basically just considers off nodes as
+#which is useful bc if you train sparse for long enough, it will just shoot all nodes to 1 all the time
+deriv w/o softmax: -desired[I]/a[I] + (1-desired[I])/(1-a[I])
+deriv w/ softmax: a[j]-d[j]+(1-d[j])*a[j]-sum (I!=j) (1-d[I])/(1-a[I])*a[j]*a[I]
+
+mean squared error: (x-d[i])^2     deriv: 2*(x-d[i])
+naive cost function which does not work very well (also should it be called mean squared if it isn't the diff from the mean?)
+
+Will add more random ones of my own if I can think of some good ones or find some through research
+Note that critically is a very interesting idea, especially in terms of information transfer and preservation
