@@ -3,35 +3,11 @@
 #include <iostream>
 #include "perfectHash.cpp"
 
-uint64_t time() {
+uint64_t time() { //timing
   using namespace std::chrono;
   return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
-/*
-bool inside(char x, char y){
-    return x>=0 && x<8 && y>=0 && y<8;
-}
 
-char** createMove(char ystart, char xstart, char yend, char xend, char spKey, char piece){ //wrote this just bc it was getting annoying and honestly kinda bad to create the move thing every time and it'll be really bad for passing into functions and stuff
-    char** move = new char*[3];
-    char* ti=new char[6]; //contiguous memory faster to allocate and destroy (by quite a lot) (and probably to retrieve from memory)
-    for(int i=0;i<3;i++){
-        move[i]=ti+i*2;
-    }
-    move[0][0]=ystart;
-    move[0][1]=xstart;
-    move[1][0]=yend;
-    move[1][1]=xend;
-    move[2][0]=spKey;
-    move[2][1]=piece; //might as well use unused spot for the piece
-    return move;
-}
-
-void destroyMove(char** move){ //note that it is actually quite a bit faster (almost twice as fast for this case) to do contiguous memory on the 1d part of the array
-    delete[] move[0];
-    delete[] move; //just destroy contents, not actual pointer to move.
-}
-*/
 int compareMoves(char** move1,char** move2){ //assuming same piece for now. Technically could just compare element by element (looking at greatest elements first) but...
     int t1=move1[0][0]*72+move1[0][1]*9+move1[1][0]*4608+move1[1][1]*576+move1[2][0];
     int t2=move2[0][0]*72+move2[0][1]*9+move2[1][0]*4608+move2[1][1]*576+move2[2][0];
@@ -212,7 +188,7 @@ int main(){
     FILE* fin=fopen("allChessMoves.txt","r");
     char** move=createMove(0,0,0,0,0,0);
     int h;
-    for(int i=0;i<4112;i++){
+    for(int i=0;i<4112;i++){ //checking to make sure allHash working properly. It does.
         fscanf(fin,"%d %d %d %d %d %d",move[0],move[0]+1,move[1],move[1]+1,move[2],move[2]+1);
         h=allHash(move);
         std::cout<<i<<" "<<h<<" "<<(int)move[0][0]<<" "<<(int)move[0][1]<<" "<<(int)move[1][0]<<" "<<(int)move[1][1]<<" "<<(int)move[2][0]<<"\n";
@@ -229,3 +205,18 @@ int main(){
 //it still is really fast!! Okay, Alex?? There's no need to worry :) so much faster than the python version and to think that the full working version with deletion is not all that much slower is great!
 //okay so down to 13.3 with better deletion! damn that's crazy how using contiguous memory is so much easier for it to allocate and deallocate even on a very small scale. So very nice.
 //I can certainly accept this :)
+
+/*
+ perfectHash metrics:
+queen: 100 million in .542 seconds. Oh my lord
+rook: .228
+king: .528
+knight: .541
+bishop: .447
+pawn: .351
+ 
+average: .44 seconds for 100 million calls or 440 micro seconds per call. Goddamn.
+ I'm pretty sure that is very good. That should be really good for my purposes
+ especially. Well, 2^20 is about 1 billion so that's 4 seconds even for my all hash function :( plus then ai has to do its thing
+ wait but many, many, many branches will get chopped off by just being evaluated as bad. Okay, then maybe I can get at least depth 20, if not maybe better? I will time everything eventually, obviously.
+*/
