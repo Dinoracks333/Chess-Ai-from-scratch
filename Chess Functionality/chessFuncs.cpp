@@ -44,7 +44,7 @@ Special keys:
  8=double pawn move
 */
 
-char*** setUp(){
+char** setUpBoard(){
     char** board=new char*[8];
     char* ti=new char[64];
     for(int i=0;i<8;i++){
@@ -98,56 +98,19 @@ char*** setUp(){
     board[6][6]=7;
     board[6][7]=7;
     
-    bool** hasMoved=new bool*[8]; //haha 1 bit per square fight me >:) (stored as 1 byte unfortunately)
-    bool* thi=new bool[64];
+    return board;
+}
+//originally had setup returning both hasMoved and board and was just casting, but there were some weird issues, and so i decided to change things around and make it explicit and not trying to toe the line at all
+bool** setUpHM(){
+    bool** hasMoved=new bool*[8];
+    bool* ti=new bool[64];
     for(int i=0;i<8;i++){
-        hasMoved[i]=thi+i*8;
+        hasMoved[i]=ti+i*8;
         for(int j=0;j<8;j++){
-            hasMoved[i][j]=1;
+            hasMoved[i][j]=0;
         }
     }
-    //pawns haven't moved
-    hasMoved[1][0]=0;
-    hasMoved[1][1]=0;
-    hasMoved[1][2]=0;
-    hasMoved[1][3]=0;
-    hasMoved[1][4]=0;
-    hasMoved[1][5]=0;
-    hasMoved[1][6]=0;
-    hasMoved[1][7]=0;
-    
-    hasMoved[6][0]=0;
-    hasMoved[6][1]=0;
-    hasMoved[6][2]=0;
-    hasMoved[6][3]=0;
-    hasMoved[6][4]=0;
-    hasMoved[6][5]=0;
-    hasMoved[6][6]=0;
-    hasMoved[6][7]=0;
-    
-    //other pieces haven't moved yet
-    hasMoved[0][0]=0;
-    hasMoved[0][1]=0;
-    hasMoved[0][2]=0;
-    hasMoved[0][3]=0;
-    hasMoved[0][4]=0;
-    hasMoved[0][5]=0;
-    hasMoved[0][6]=0;
-    hasMoved[0][7]=0;
-    
-    hasMoved[7][0]=0;
-    hasMoved[7][1]=0;
-    hasMoved[7][2]=0;
-    hasMoved[7][3]=0;
-    hasMoved[7][4]=0;
-    hasMoved[7][5]=0;
-    hasMoved[7][6]=0;
-    hasMoved[7][7]=0;
-    
-    char*** both=new char**[2];
-    both[0]=board;
-    both[1]=(char**) hasMoved;
-    return both;
+    return hasMoved;
 }
 
 bool inside(char x, char y){
@@ -180,7 +143,13 @@ void destroyBoard(char** board){
     delete[] board;
 }
 
-bool kingInCheck(char** board, bool turn, bool destroy){ //destroy parameter decides whether or not we should get rid of the board memory we were given. Should be used whenever a simMove output is fed directly into this function (which I do a lot). Once again, makes it easier bc don't have to create as many variables and is honestly more readable (debateable) so I'm fine w/ it for now (forever).
+void destroyHM(bool** hasMoved){ //again just trying to make not weird undefined behavior is happening causing the random reassignment
+    delete[] hasMoved[0];
+    delete[]hasMoved;
+}
+
+bool kingInCheck(char** board, bool turn){ //destroy parameter decides whether or not we should get rid of the board memory we were given. Should be used whenever a simMove output is fed directly into this function (which I do a lot). Once again, makes it easier bc don't have to create as many variables and is honestly more readable (debateable) so I'm fine w/ it for now (forever).
+    //kinda like inverses piece moves to find if enemies can move onto itself
     const char opcolor=(turn^1)*6;
     char king[2]; //finding king
     for(int i=0;i<8;i++){
@@ -201,106 +170,102 @@ bool kingInCheck(char** board, bool turn, bool destroy){ //destroy parameter dec
             for(int y=-1;y<2;y+=2){
                 a=king[0]+x*knightMove[i][0];
                 b=king[1]+y*knightMove[i][1];
-                if(inside(a,b) && board[a][b]==opcolor+3){
-                    if(destroy)
-                        destroyBoard(board);
+                if(inside(a,b) && board[a][b]==opcolor+3)
                     return true;
-                }
             }
         }
     }
     
     //pawns
     const char s=-2*turn+1;
-    if((inside(king[0]+s,king[1]+1) && board[king[0]+s][king[1]+1]==opcolor+1) || (inside(king[0]+s,king[1]-1) && board[king[0]+s][king[1]-1]==opcolor+1)){
-        if(destroy)
-            destroyBoard(board);
+    if((inside(king[0]+s,king[1]+1) && board[king[0]+s][king[1]+1]==opcolor+1) || (inside(king[0]+s,king[1]-1) && board[king[0]+s][king[1]-1]==opcolor+1))
         return true;
-    }
     
     //bishops
     char tx,ty;
     for(int i=-1;i<2;i+=2){
         for(int j=-1;j<2;j+=2){
             for(ty=king[0]+i,tx=king[1]+j;inside(ty,tx) && !board[ty][tx];ty+=i,tx+=j); //succint and beautiful :P these for loops are the bomb
-            if(inside(ty,tx) && (board[ty][tx]==opcolor+2 || board[ty][tx]==opcolor+5)){
-                if(destroy)
-                    destroyBoard(board);
+            if(inside(ty,tx) && (board[ty][tx]==opcolor+2 || board[ty][tx]==opcolor+5))
                 return true;
-            }
         }
     }
     
     //rooks
+    char j;
     for(int a=-1;a<2;a+=2){
         for(int i=0;i<2;i++){
-            for(int j=0;j<2;j++){
-                for(ty=king[0]+a*i,tx=king[1]+a*j;inside(ty,tx) && !board[ty][tx];ty+=a*i,tx+=a*j);
-                if(inside(ty,tx) && (board[ty][tx]==opcolor+4 || board[ty][tx]==opcolor+5)){
-                    if(destroy)
-                        destroyBoard(board);
-                    return true;
-                }
-            }
+            j=i^1;
+            for(ty=king[0]+a*i,tx=king[1]+a*j;inside(ty,tx) && !board[ty][tx];ty+=a*i,tx+=a*j);
+            if(inside(ty,tx) && (board[ty][tx]==opcolor+4 || board[ty][tx]==opcolor+5))
+                return true;
         }
     }
     
     //king
     for(int i=-1;i<2;i++){
         for(int j=-1;j<2;j++){
-            if(inside(king[0]+i,king[1]+j) && board[king[0]+i][king[1]+j]==opcolor+6){
-                if(destroy)
-                    destroyBoard(board);
+            if(inside(king[0]+i,king[1]+j) && board[king[0]+i][king[1]+j]==opcolor+6)
                 return true;
-            }
         }
     }
-    if(destroy)
-        destroyBoard(board);
     return false;
 }
 
-char** simMove(char** board, char** move, bool turn, bool destroy){
+bool simMove(char** board, char** move, bool turn){ //turn this sim move into something that does the move without changing hasMoved and then calls kingInCheck to test validity and then undoes the move, all using the actual board array so that I don't have to copy everything and then delete and can just change only a few elements. Should be quite a bit faster
     char color=turn*6;
-    char** tb=new char*[8];
-    char* ti=new char[64]; //finally figured out the notation or way to do static 2d pointers. Just had to make next level contiguous.
-    //I actually don't know if the memory will be good or not though... oh well...
-    //don't use static here. Either that or don't destroy the boards, but I feel a bit safer with destroying the boards. So yeah, anyways.
-    for(int i=0;i<8;i++){
-        tb[i]=ti+i*8;
-        for(int j=0;j<8;j++){
-            tb[i][j]=board[i][j];
-        }
-    }
+    char temp;
+    bool res;
+    char piece=board[move[0][0]][move[0][1]]; //in theory redundant, but creates an issue when simulating as rook while in reality queen.
     if(move[2][0]==1){ //En Passant
-        tb[move[0][0]][move[0][1]]=0;
-        tb[move[1][0]][move[1][1]]=color+move[2][1];
-        tb[move[1][0]+2*turn-1][move[1][1]]=0;
+        board[move[0][0]][move[0][1]]=0;
+        board[move[1][0]][move[1][1]]=color+move[2][1];
+        temp=board[move[1][0]+2*turn-1][move[1][1]];
+        board[move[1][0]+2*turn-1][move[1][1]]=0;
+        res=kingInCheck(board,turn);
+        board[move[1][0]+2*turn-1][move[1][1]]=temp;
+        board[move[0][0]][move[0][1]]=piece;
+        board[move[1][0]][move[1][1]]=0;
     }
     else if(move[2][0]>=2 && move[2][0]<6){ //Promotion keys. It's just the piece number :P hehe cheeky me
-        tb[move[0][0]][move[0][1]]=0;
-        tb[move[1][0]][move[1][1]]=color+move[2][0];
+        board[move[0][0]][move[0][1]]=0;
+        temp=board[move[1][0]][move[1][1]];
+        board[move[1][0]][move[1][1]]=color+move[2][0];
+        res=kingInCheck(board,turn);
+        board[move[1][0]][move[1][1]]=temp;
+        board[move[0][0]][move[0][1]]=piece;
     }
     else if(move[2][0]==6){ //Left side castle (long)
-        tb[move[0][0]][move[0][1]]=0;
-        tb[move[1][0]][move[1][1]]=color+move[2][1];
-        tb[move[1][0]][move[1][1]+1]=tb[move[0][0]][move[0][1]-4];
-        tb[move[0][0]][move[0][1]-4]=0;
+        board[move[0][0]][move[0][1]]=0;
+        board[move[1][0]][move[1][1]]=color+6;
+        board[move[1][0]][move[1][1]+1]=color+4;
+        board[move[0][0]][move[0][1]-4]=0;
+        res=kingInCheck(board,turn);
+        board[move[0][0]][move[0][1]]=color+6;
+        board[move[1][0]][move[1][1]]=0;
+        board[move[1][0]][move[1][1]+1]=0;
+        board[move[0][0]][move[0][1]-4]=color+4;
     }
     else if(move[2][0]==7){ //Right side castle (short)
-        tb[move[0][0]][move[0][1]]=0;
-        tb[move[1][0]][move[1][1]]=color+move[2][1];
-        tb[move[1][0]][move[1][1]-1]=tb[move[0][0]][move[0][1]+3];
-        tb[move[0][0]][move[0][1]+3]=0;
+        board[move[0][0]][move[0][1]]=0;
+        board[move[1][0]][move[1][1]]=color+6;
+        board[move[1][0]][move[1][1]-1]=color+4;
+        board[move[0][0]][move[0][1]+3]=0;
+        res=kingInCheck(board,turn);
+        board[move[0][0]][move[0][1]]=color+6;
+        board[move[1][0]][move[1][1]]=0;
+        board[move[1][0]][move[1][1]-1]=0;
+        board[move[0][0]][move[0][1]+3]=color+4;
     }
     else{
-        tb[move[0][0]][move[0][1]]=0;
-        tb[move[1][0]][move[1][1]]=color+move[2][1];
+        board[move[0][0]][move[0][1]]=0;
+        temp=board[move[1][0]][move[1][1]];
+        board[move[1][0]][move[1][1]]=color+move[2][1];
+        res=kingInCheck(board,turn);
+        board[move[1][0]][move[1][1]]=temp;
+        board[move[0][0]][move[0][1]]=piece;
     }
-    if(destroy){ //used when I'm passing things into functions and just don't want to make extra variables and clutter. Not too hard or unintuitive of a fix, and I feel that it fits somewhat well with simMove, so I think I'll accept it for now.
-        destroyMove(move);
-    }
-    return tb;
+    return res;
 }
 
 char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool turn, char enPas){
@@ -314,7 +279,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
             const char s=-2*turn+1;
             if(pos[0]==6*turn+(turn^1) && !hasMoved[pos[0]][pos[1]] && !board[pos[0]+2*s][pos[1]] && !board[pos[0]+s][pos[1]]){ //double move from start
                 tempMove=createMove(pos[0],pos[1],pos[0]+2*s,pos[1],8,piece);
-                if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                if(!simMove(board,tempMove,turn))
                     moves[ind++]=tempMove;
                 else
                     destroyMove(tempMove);
@@ -324,7 +289,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                     if(pos[0]+s==(turn^1)*7){ //promotion
                         for(int i=2;i<6;i++){
                             tempMove=createMove(pos[0],pos[1],pos[0]+s,pos[1],i,piece);
-                            if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                            if(!simMove(board,tempMove,turn))
                                 moves[ind++]=tempMove;
                             else
                                 destroyMove(tempMove);
@@ -332,7 +297,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                     }
                     else{
                         tempMove=createMove(pos[0],pos[1],pos[0]+s,pos[1],0,piece);
-                        if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                        if(!simMove(board,tempMove,turn))
                             moves[ind++]=tempMove;
                         else
                             destroyMove(tempMove);
@@ -343,7 +308,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                         if(pos[0]+s==(turn^1)*7){
                             for(int j=2;j<6;j++){
                                 tempMove=createMove(pos[0],pos[1],pos[0]+s,pos[1]+i,j,piece);
-                                if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                                if(!simMove(board,tempMove,turn))
                                     moves[ind++]=tempMove;
                                 else
                                     destroyMove(tempMove);
@@ -351,7 +316,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                         }
                         else{
                             tempMove=createMove(pos[0],pos[1],pos[0]+s,pos[1]+i,0,piece);
-                            if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                            if(!simMove(board,tempMove,turn))
                                 moves[ind++]=tempMove;
                             else
                                 destroyMove(tempMove);
@@ -359,7 +324,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                     }
                     if(pos[1]+i==enPas && pos[0]==4-turn){ //en passant
                         tempMove=createMove(pos[0],pos[1],pos[0]+s,pos[1]+i,1,piece);
-                        if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                        if(!simMove(board,tempMove,turn))
                             moves[ind++]=tempMove;
                         else
                             destroyMove(tempMove);
@@ -374,14 +339,14 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                 for(int j=-1;j<2;j+=2){
                     for(ty=pos[0]+i,tx=pos[1]+j;inside(ty,tx) && !board[ty][tx];ty+=i,tx+=j){
                         tempMove=createMove(pos[0],pos[1],ty,tx,0,piece);
-                        if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                        if(!simMove(board,tempMove,turn))
                             moves[ind++]=tempMove;
                         else
                             destroyMove(tempMove);
                     }
                     if(inside(ty,tx) && board[ty][tx]/7==(turn^1)){
                         tempMove=createMove(pos[0],pos[1],ty,tx,0,piece);
-                        if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                        if(!simMove(board,tempMove,turn))
                             moves[ind++]=tempMove;
                         else
                             destroyMove(tempMove);
@@ -400,7 +365,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                         b=pos[1]+y*knightMove[i][1];
                         if(inside(a,b) && (!board[a][b] || board[a][b]/7==(turn^1))){ //nice boolean simplification
                             tempMove=createMove(pos[0],pos[1],a,b,0,piece);
-                            if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                            if(!simMove(board,tempMove,turn))
                                 moves[ind++]=tempMove;
                             else
                                 destroyMove(tempMove);
@@ -417,14 +382,14 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                     j=i^1;
                     for(ty=pos[0]+a*i,tx=pos[1]+a*j;inside(ty,tx) && !board[ty][tx];ty+=a*i,tx+=a*j){
                         tempMove=createMove(pos[0],pos[1],ty,tx,0,piece);
-                        if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                        if(!simMove(board,tempMove,turn))
                             moves[ind++]=tempMove;
                         else
                             destroyMove(tempMove);
                     }
                     if(inside(ty,tx) && board[ty][tx]/7==(turn^1)){
                         tempMove=createMove(pos[0],pos[1],ty,tx,0,piece);
-                        if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                        if(!simMove(board,tempMove,turn))
                             moves[ind++]=tempMove;
                         else
                             destroyMove(tempMove);
@@ -453,7 +418,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                         continue;
                     if(inside(pos[0]+i,pos[1]+j) && (!board[pos[0]+i][pos[1]+j] || board[pos[0]+i][pos[1]+j]/7==(turn^1))){
                         tempMove=createMove(pos[0],pos[1],pos[0]+i,pos[1]+j,0,piece);
-                        if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                        if(!simMove(board,tempMove,turn))
                             moves[ind++]=tempMove;
                         else
                             destroyMove(tempMove);
@@ -475,13 +440,17 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                         }
                     }
                     if(clear){ //check that the king isn't moving through check
-                        if(!kingInCheck(board,turn,false) && !kingInCheck(simMove(board,createMove(pos[0],pos[1],pos[0],pos[1]+i,0,6),turn,true),turn,true) && !kingInCheck(simMove(board,createMove(pos[0],pos[1],pos[0],pos[1]+2*i,0,6),turn,true),turn,true)){
+                        char** t1=createMove(pos[0],pos[1],pos[0],pos[1]+i,0,6);
+                        char** t2=createMove(pos[0],pos[1],pos[0],pos[1]+2*i,0,6);
+                        if(!kingInCheck(board,turn) && !simMove(board,t1,turn) && !simMove(board,t2,turn)){
                             tempMove=createMove(pos[0],pos[1],pos[0],pos[1]+2*i,6+(i+1)/2,6);
-                            if(!kingInCheck(simMove(board,tempMove,turn,false),turn,true))
+                            if(!simMove(board,tempMove,turn))
                                 moves[ind++]=tempMove;
                             else
                                 destroyMove(tempMove);
                         }
+                        destroyMove(t1);
+                        destroyMove(t2);
                     }
                 }
             }
@@ -506,6 +475,7 @@ char*** getAllMoves(char** board, bool** hasMoved, bool turn, char enPas){
                 for(int x=0;tempMoves[x]!=NULL;x++){
                     moves[tind++]=tempMoves[x];
                 }
+                delete[] tempMoves;
             }
         }
     }
@@ -529,6 +499,7 @@ void movePiece(char** board, bool** hasMoved, char** move, bool turn){
         board[move[1][0]][move[1][1]+1]=color+4;
         board[move[0][0]][move[0][1]-4]=0;
         hasMoved[move[0][0]][move[0][1]-4]=1;
+        hasMoved[move[1][0]][move[1][1]+1]=1;
     }
     else if(move[2][0]==7){ //Right side castle (char)
         board[move[0][0]][move[0][1]]=0;
@@ -536,102 +507,16 @@ void movePiece(char** board, bool** hasMoved, char** move, bool turn){
         board[move[1][0]][move[1][1]-1]=color+4;
         board[move[0][0]][move[0][1]+3]=0;
         hasMoved[move[0][0]][move[0][1]+3]=1;
+        hasMoved[move[1][0]][move[1][1]-1]=1;
     }
     else{
         board[move[0][0]][move[0][1]]=0;
         board[move[1][0]][move[1][1]]=color+move[2][1];
     }
     hasMoved[move[0][0]][move[0][1]]=1;
+    hasMoved[move[1][0]][move[1][1]]=1;
 }
-/*
-char** pgnConvert(char* pgn, char n, char** board, bool** hasMoved, bool turn, char enPas){ //not yet complete
-    char piece;
-    char* pgnClean=new char[n];
-    char** move=new char*[3];
-    for(int i=0;i<3;i++){
-        move[i]=new char[2];
-    }
-    
-    if(pgn[0]=='-'){ //move was skipped for whatever reason. Only ever saw one example of this
-        return 0;
-    }
-    if(pgn[0]=='O'){ //castling
-        if(pgn[3]){ //long
-            move=createMove(7*turn,4,7*turn,2,6,6);
-        }
-        else{ //short
-            move=createMove(7*turn,4,7*turn,6,7,6);
-        }
-        return move;
-    }
-    
-    char relstart=1;
-    if(pgn[0]=='K'){
-        piece=6;
-    }else if(pgn[0]=='Q'){
-        piece=5;
-    }else if(pgn[0]=='R'){
-        piece=4;
-    }else if(pgn[0]=='N'){
-        piece=3;
-    }else if(pgn[0]=='B'){
-        piece=2;
-    }else{
-        piece=1;
-        relstart=0;
-    }
-    
-    char tind=0;
-    for(int i=relstart;i<n;i++){
-        if(pgn[i]=='x' || pgn[i]=='=' || pgn[i]=='+' || pgn[i]=='#')
-            continue;
-        pgnClean[tind++]=pgn[i];
-    }
-    //after this it is only 2-4 characters representing (start y) (start x) end y end x (promote piece)
-    char ylook,xlook,spKey;
-    bool isy=0,isx=0;
-    if((pgnClean[1]>='a' && pgnClean[1]<='h') || (tind>4 && pgnClean[2]>='a' && pgnClean[2]<='h')){
-        ylook=pgnClean[0]-'a'; //first character is extra info for row
-        isy=1;
-        if(pgnClean[1]>='1' || pgnClean[1]<='8'){
-            xlook=pgnClean[0]-'1'; //second char is extra info for col
-            isx=1;
-        }
-    }
-    if(pgnClean[0]>='1' || pgnClean[0]<='8'){ //not sure I can put an else on this statement, so im leaving it like this.
-        xlook=pgnClean[0]-'1';
-        isx=1;
-    }
-    if(pgnClean[tind-1]=='Q'){
-        spKey=5;
-    }else if(pgnClean[tind-1]=='R'){
-        spKey=4;
-    }else if(pgnClean[tind-1]=='N'){
-        spKey=3;
-    }else if(pgnClean[tind-1]=='B'){
-        spKey=2;
-    }else{
-        spKey=0; //no promotion
-    }
-    char*** moves;
-    char pos[2];
-    switch(isy+isx*2){
-        case 0: //no restriction
-            for(int i=0;i<8;i++){
-                for(int j=0;j<8;j++){
-                    if(board[i][j]==piece+turn*6){
-                        pos[0]=i;
-                        pos[1]=j;
-                        moves=getMoves(board,hasMoved,pos,piece,turn,enPas);
-                    }
-                }
-            }
-            
-    }
-    //finish this. Not complete yet
-    return move;
-}
-*/
+
 bool validSearch(char*** allMoves, char** move, char size){ //check if given move is within all valid moves for a turn.
     //relies on the assumption that allMoves is generated by my getAllMoves functions. Namely, this means that it assumes that moves are generated row by row, left to right. I.e, spatially sorted. So if it meets the second criterium, inputs are valid
     //do binary search to find lower bound  over start pos and then linear search until end pos or match. I can't really think of a way in general to reduce the searching within, but this should honestly be okay anyways because it won't exceed 27 moves, and having some protracted method to abstract some "sorted" quality from how I generate end points isn't worth it for such a small search space. For the input space where it is very clear and can get a bit bigger (a normal maximum likely around 50 ish) is roughly worth it.
@@ -673,6 +558,7 @@ bool validSearch(char*** allMoves, char** move, char size){ //check if given mov
 void displayBoard(char** board){
     char tcolor;
     for(int i=7;i>-1;i--){
+        std::cout<<(char)('1'+i)<<" ";
         for(int j=0;j<8;j++){
             if(board[i][j]==0){
                 printf("   ");
@@ -708,14 +594,118 @@ void displayBoard(char** board){
         }
         printf("\n");
     }
+    std::cout<<"  ";
+    for(int i=0;i<8;i++){
+        std::cout<<(char)('a'+i)<<"  ";
+    }
+    std::cout<<"\n";
+}
+
+char** pgnConvert(char* pgn, char** board, bool** hasMoved, bool turn, char enPas){ //confirmed working yay!! Helped me iron out a few bugs with other functions as well
+    int n=strlen(pgn);
+    char end[2];
+    char piece;
+    char* pgnClean=new char[n];
+    char** move;
+    if(pgn[0]=='-'){ //move was skipped for whatever reason. Only ever saw one example of this
+        return 0;
+    }
+    if(pgn[0]=='O'){ //castling
+        if(pgn[3]=='-'){ //long
+            move=createMove(7*turn,4,7*turn,2,6,6);
+        }
+        else{ //short
+            move=createMove(7*turn,4,7*turn,6,7,6);
+        }
+        delete[] pgnClean;
+        return move;
+    }
+    char relstart=1;
+    if(pgn[0]=='K'){
+        piece=6;
+    }else if(pgn[0]=='Q'){
+        piece=5;
+    }else if(pgn[0]=='R'){
+        piece=4;
+    }else if(pgn[0]=='N'){
+        piece=3;
+    }else if(pgn[0]=='B'){
+        piece=2;
+    }else{
+        piece=1;
+        relstart=0;
+    }
+    
+    char tind=0;
+    for(int i=relstart;i<n;i++){
+        if(pgn[i]=='x' || pgn[i]=='=' || pgn[i]=='+' || pgn[i]=='#')
+            continue;
+        pgnClean[tind++]=pgn[i];
+    }
+    //after this it is only 2-4 characters representing (start y) (start x) end y end x (promote piece)
+    char ylook,xlook,spKey;
+    ylook=xlook=8; //dont want to go -1 and mess with weird signed vs usigned stuff, so 9 is out of the range.
+    if((pgnClean[0]>='a' && pgnClean[0]<='h') && ((pgnClean[1]>='a' && pgnClean[1]<='h') || (pgnClean[2]>='a' && pgnClean[2]<='h'))){
+        xlook=pgnClean[0]-'a';
+        if(pgnClean[1]>='1' && pgnClean[1]<='8'){
+            ylook=pgnClean[1]-'1'; //second char is extra info for col
+        }
+    }
+    if(pgnClean[0]>='1' && pgnClean[0]<='8'){ //not sure I can put an else on this statement, so im leaving it like this.
+        ylook=pgnClean[0]-'1';
+    }
+    if(pgnClean[tind-1]=='Q'){
+        spKey=5;
+    }else if(pgnClean[tind-1]=='R'){
+        spKey=4;
+    }else if(pgnClean[tind-1]=='N'){
+        spKey=3;
+    }else if(pgnClean[tind-1]=='B'){
+        spKey=2;
+    }else{
+        spKey=0; //no promotion
+    }
+    end[0]=pgnClean[(ylook!=8)+(xlook!=8)+1]-'1';
+    end[1]=pgnClean[(ylook!=8)+(xlook!=8)]-'a';
+    char*** moves;
+    char pos[2];
+    bool found=0;
+    for(int i=0;i<8 && !found;i++){
+        if(ylook!=8 && i!=ylook)
+            continue;
+        for(int j=0;j<8 && !found;j++){
+            if(xlook!=8 && j!=xlook)
+                continue;
+            if(board[i][j]==piece+turn*6){
+                pos[0]=i;
+                pos[1]=j;
+                moves=getMoves(board,hasMoved,pos,piece,turn,enPas);
+                for(int m=0;moves[m];m++){
+                    if(moves[m][1][0]==end[0] && moves[m][1][1]==end[1]){
+                        found=1;
+                        if(!spKey)
+                            spKey=moves[m][2][0];
+                        //no break so that I delete all of the extra moves for this piece that I am checking
+                    }
+                    destroyMove(moves[m]);
+                }
+                delete[] moves;
+            }
+        }
+    }
+    if(!found){
+        return (char**) -1; //error occurred and nothing was found!!!! Invalid move or my program is wrong
+    }
+    move=createMove(pos[0],pos[1],end[0],end[1],spKey,piece);
+    delete[] pgnClean;
+    return move;
 }
 
 void playGame(){
     //prob use printf cause chars will be auto printed as ascii characters rather than as numerical values as we want (can case in std::cout)
     //NOTE: NEED TO ADD THREEFOLD REP AND FIFTY MOVE RULE
-    char*** t=setUp();
-    char** board=t[0];
-    bool** hasMoved=(bool**) t[1];
+    char** board=setUpBoard();
+    bool** hasMoved=setUpHM();
     char*** moves;
     displayBoard(board);
     int option, i;
@@ -728,7 +718,7 @@ void playGame(){
         }
         if(i==0){ //no moves available. Game is over either due to checkmate or stalemate
             int res=2;
-            if(kingInCheck(board,turn,false)){
+            if(kingInCheck(board,turn)){
                 res=turn^1;
             }
             if(res==0){
@@ -760,32 +750,16 @@ void playGame(){
         for(i=0;moves[i]!=NULL;i++){ //clean-up
             destroyMove(moves[i]);
         }
+        delete[] moves; //also have to get rid of space allocated to point to individual moves in this case
     }
     //final clean-up
     destroyBoard(board);
-    destroyBoard((char**)hasMoved); //have to convert like this to char** bc that's the input type for the function, but it just deletes the memory unbiasedly, and I allocatted them in the same way, so it is fine. I should be a little wary of what I did, but I think this should be completely fine and no errors.
-    delete[] t;
+    destroyHM(hasMoved); //have to convert like this to char** bc that's the input type for the function, but it just deletes the memory unbiasedly, and I allocatted them in the same way, so it is fine. I should be a little wary of what I did, but I think this should be completely fine and no errors.
 }
+
 /*
-int main(){ //if you want to compile this on its own you have to include main. But if you want to use it elsewhere then you have to remove main.
-    //playGame();
-    char*** m;
-    char** move;
-    int x,y,x2,y2;
-    printf("Enter 4: ");
-    scanf("%d %d %d %d",&y,&x,&y2,&x2);
-    move=createMove(y,x,y2,x2,2,1);
-    std::cout<<allHash(move)<<"\n";
+int main(){ //if you want to compile this on its own you have to include main. But if you want to use it elsewhere then you have to remove main. Prob can do both if you just prototype it
+    
     return 0;
 }
- */
-//takes about 12.5 seconds to run getAllMoves 1000000 times without deletion. Pretty good actually, I think. Would be pretty hard to improve as I wrote it quite efficiently.
-//NOTE: need to retest because I changed to switch statement, which I think will be a bit faster, but I also added in deletion, so that might be something. Although I was talking more about deleting all of the moves.
-//13.3 with deletion after making it a bit more efficient so that's pretty good
-
-
-//I think that I have determined that searching through the set of all moves will be most efficient with just a hash map (likely one for which I create the hashing so that there are no collisions)
-//I already have perfect information about what elements are within the set and certain qualities of the elements, so rather than manipulating the ordering so that I can do binary search, why not just do an instantaneous lookup from a hashmap? And actually, I can store it as an array in general and still order the elements in such a way that the desired hashing is preservered or smth. Like I could do (naively) start coords (like 0 to 63)*64*8+end coords*8 + spKey (that actually fits within an int pretty comfortably... but it would be nice not to have the array of all possible moves be bigger than necessary. There is definitely a way that I can manipulate this... Maybe I can do start to end coords first and spkey at the front or smth. Idk. Eh, it might just be best to make a hashmap anyways (aka std::unordered_map), but like I need to look at exactly how it allocates memory for that to see if it just creates a bigger space and then doesn't use it or allocates for keys dynamically or what
-//okay so after some research, it basically is what I expected it to be. You have an array of size #keys in each of which is a bucket/linked list of all of the elements which have been mapped to corresponding to that key
-//I feel that there must be a more efficient memory way to do it dynamically without taking up as much memory but I might be wrong...
-//nah I think this is gonna have to be the way. (you could I suppose choose to allocate a pointer key or whatever for each spot dynamically but eh anyways who the hell cares. Especially for this it ain't that bad... and the speedup is insane. Guaranteed perfect hash hell yeah)
+*/
