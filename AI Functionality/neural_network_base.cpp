@@ -2,13 +2,9 @@
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
-#include <algorithm>
-#include <string.h>
-#include <cstdio>
-#include <ctype.h>
-#include <assert.h>
+#include <stdio.h>
 
-
+//might write another version which is more malleable in which you can easily assign different activation functions to different layers and can create multiple nns of different sizes. Actually, ill probably have to do that since im using two ais for the chess functionality
 //globals for size for ease of use
 const int in_num=1;
 const int hidden_num=20;
@@ -16,7 +12,6 @@ const int out_num=1;
 const int hlayer_num=3;
 const double sig_fact=.01;
 const double initpsize=.05;
-const int msize=fmax(fmax(in_num,out_num),hidden_num);
 
 /*Activation Functions*/
 double sigmoid(double x){ //deriv: s*(1-s)*sig_fact
@@ -141,16 +136,17 @@ class Node{
     double val;
     double activation;
     double delta_a;
-    double weights[784]; //i have to manually enter it in for some reason??? won't let me use const and memory allocation errors otherwise... goddamn man (new keyword might fix...)
-    Node(int layer_num, int node_num){
-        for(int i=0;i<msize;i++) weights[i]=((double)(rand())/RAND_MAX)*initpsize;
-      layer=layer_num;
-      row=node_num;
+    double* weights; //i have to manually enter it in for some reason??? won't let me use const and memory allocation errors otherwise... goddamn man (new keyword might fix...)
+    Node(int layer_num, int node_num, int num_weights){
+        weights=new double[num_weights]; //can actually have variable lengths like this. less wasteful and tbh more freedom
+        for(int i=0;i<num_weights;i++) weights[i]=((double)(rand())/RAND_MAX)*initpsize;
+        layer=layer_num;
+        row=node_num;
         bias=((double)(rand())/RAND_MAX)*initpsize;
-      if(layer_num==0) bias=0; //no bias for input
-      val=0;
-      activation=0;
-      delta_a=0;
+        if(layer_num==0) bias=0; //no bias for input
+        val=0;
+        activation=0;
+        delta_a=0;
     }
     void backProp(double learn_rate, Node** nodes, int size);
 };
@@ -225,6 +221,32 @@ double* activate(Node** nodes, int layer){
   }
   return activate(nodes,layer+1);
 }
+//could maybe make function to make individual layers and allow you to choose exactly the activation function, but id have to change up the structure, so maybe another time
+Node** makeLayer(int in, int hidden, int out, int numH){ //maybe also give adjustment for initial weighting?? eh idk cause I think the optimizer will fix all of that. Just need to actually do lol
+    Node** nodes=(Node**) malloc(sizeof(Node*)*(2+numH));
+    //making it contiguous for now on the 1d part. Not sure if a good or bad idea
+    //just keep it in mind
+    Node* ti=(Node*) malloc(sizeof(Node)*(in+hidden*numH+out)); //using malloc because I need a different constructor for each individual element
+    nodes[0]=ti;
+    for(int i=1;i<numH+2;i++){
+        nodes[i]=ti+(i-1)*hidden+in;
+    }
+    for(int i=0;i<in;i++){
+        nodes[0][i]=Node(0,i,hidden);
+    }
+    for(int i=1;i<numH+1;i++){
+        for(int j=0;j<hidden;j++){
+            if(i==numH)
+                nodes[i][j]=Node(i,j,out);
+            else
+                nodes[i][j]=Node(i,j,hidden);
+        }
+    }
+    for(int i=0;i<out;i++){
+        nodes[numH+1][i]=Node(numH+1,i,0); //no weights for out layer
+    }
+    return nodes;
+}
 
 void brainRead(char fname[],Node** nodes){
     //technically can read first line for size, but the assumption is that the size matches your nodes anyways. I could have it just read in a file and give you the node array with the correct size automatically but eh. You can just look at the header for the text file you are reading in... Well maybe I will change it at some point but then you gotta set the constants too. Im just gonna keep it like this for now
@@ -290,24 +312,18 @@ void brainWrite(char fname[],Node** nodes){
 }
 
 int main() {
-  Node** nodes=(Node**) malloc(sizeof(Node*)*(hlayer_num+2));
-  for(int i=0;i<hlayer_num+2;i++){
-    nodes[i]=(Node*) malloc(sizeof(Node)*msize);
-    for(int j=0;j<msize;j++){
-      nodes[i][j]=Node(i,j); //it doesn't like me having different sized lists... but the logic is there that it will only use the ones that it needs to
+    Node** nodes=makeLayer(in_num,hidden_num,out_num,hlayer_num);
+    int num;
+    double des[out_num];
+    double* res;
+    srand((int)time(0)); //seed for random numbers
+    for(int i=0;i<1000;i++){
+        num=rand()%2;
+        nodes[0][0].val=num;
+        res=activate(nodes,0);
+        des[0]=num%2;
+        adjust(nodes,des,10);
+        if(i%10==0) std::cout<<*res<<" "<<*des<<"\n";
     }
-  }
-  int num;
-  double des[out_num];
-  double* res;
-  srand((int)time(0)); //seed for random numbers
-  for(int i=0;i<1000;i++){
-    num=rand()%2;
-    nodes[0][0].val=num;
-    res=activate(nodes,0);
-    des[0]=num%2;
-    adjust(nodes,des,10);
-    if(i%10==0) std::cout<<*res<<" "<<*des<<"\n";
-  }
-  return 0;
+    return 0;
 }
