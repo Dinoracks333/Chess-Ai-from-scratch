@@ -19,8 +19,7 @@ char* fullLower(char* word){
     return low;
 }
 
-int playPGN(char* seq){ //make sure not to have newline character in seq
-    //works!!
+int playPGN(char* seq){ //make sure not to have newline character in seq (will probably still work but return value might be wrong)
     bool turn=0; //just setup stuff
     char** move;
     char** board=setUpBoard();
@@ -35,7 +34,7 @@ int playPGN(char* seq){ //make sure not to have newline character in seq
     pgn[i]=0;
     m++;
     while(seq[m-1]){
-        //std::cout<<pgn<<"\n";
+        //std::cout<<pgn<<"\n"; //if you want to see the pgns as it goes through them
         if(x%3==0){
             x++;
             for(i=0;seq[m]!=' ' && seq[m];i++,m++)
@@ -64,7 +63,6 @@ int playPGN(char* seq){ //make sure not to have newline character in seq
         else{
             enPas=10;
         }
-        //printf("%d %d %d %d %d %d\n",move[0][0],move[0][1],move[1][0],move[1][1],move[2][0],move[2][1]);
         movePiece(board,hasMoved,move,turn);
         destroyMove(move);
         turn^=1;
@@ -74,7 +72,8 @@ int playPGN(char* seq){ //make sure not to have newline character in seq
         pgn[i]=0;
         m++;
     }
-
+    
+    //displayBoard(board); //if you want to see the final board state
     //moves done, check for result
     if(strcmp(pgn,"1/2-1/2")==0){
         //std::cout<<"Draw\n";
@@ -116,32 +115,17 @@ void rep(char* word){
     }
 }
 
-//TOTAL GAME COUNT: 807765
 int main(){
-    //I think I've ironed out most of the problems!!! pretty happy. The hasMoved weird memory access thing was really problematic, but it is done now. No debugger necessary lol... might have helped though? idk. once I just figure out about where it was, I pretty much had it done mostly
     FILE* fin;
-    /*
-    char temp[8000];
-    int res;
-    fin=fopen("testin.txt","r");
-    while(!feof(fin)){
-        fscanf(fin,"%[^\n]",temp);
-        fgetc(fin);
-        if(temp[0]=='1'){
-            res=playPGN(temp);
-            std::cout<<res<<"\n";
-            fgetc(fin);
-        }
-    }
-     */
-    FILE* fnames=fopen("chess_names.txt","r"); //all is working
-    char temp[8000]; //fuck it. 8kb. Somehow 2kb is not enough goddamnit
+    FILE* fnames=fopen("chess_names.txt","r"); //can enter in a file with a bunch of different file names if you want
+    char temp[8000]; //8kb. Somehow 2kb is not enough
     char tname[50];
     char* lowname;
-    int fct=0;
-    int games=0;
+    int fct=0; //total count of pgn files opened (not just number of games)
+    int games=0; //total game count
     while(!feof(fnames)){
         fgets(tname,50,fnames);
+        /* //formatting stuff. Was necessary for my case
         rep(tname);
         int i;
         for(i=0;tname[i] && tname[i]!='\n';i++);
@@ -151,6 +135,8 @@ int main(){
         tname[i+3]='n';
         tname[i+4]='\0';
         lowname=fullLower(tname);
+        */
+        lowname=tname;
         fin=fopen(lowname,"r");
         if(!fin){
             std::cout<<lowname<<" couldnt be opened\n";
@@ -158,16 +144,14 @@ int main(){
         }
         std::cout<<lowname<<" "<<++fct<<"\n";
         delete[] lowname;
-        //int games=0;
         int res;
         while(!feof(fin)){
-            //std::cout<<++games<<"\n";
             fscanf(fin,"%[^\n]",temp);
             fgetc(fin);
             if(temp[0]=='1'){
                 games++;
                 res=playPGN(temp);
-                //std::cout<<res<<"\n";
+                //std::cout<<res<<"\n"; //if you want to know the result
                 if(res==-2){
                     std::cout<<temp<<"\n";
                 }
