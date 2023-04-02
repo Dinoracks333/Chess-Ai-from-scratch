@@ -8,16 +8,9 @@
 //figured out the memory stuff yay!! pretty sure at the very least :) so, nice
 /*
 I wanna be super efficient, probably to the point where it is going too far,
-so im gonna use ints instead of chars for the piece values at a relative cost of
-clarity, but otherwise I would have to have a 2d char array and that's tbh kinda
-annoying and this way I can have some stuff built in so yeah, itll be good I think
+so im gonna use chars (aka 1 byte numbers, 0 to 255) for most of the variables. 
+Saves memory and limits cache misses though, so it does speed up the program
  
- Using SHORT FOR MAXIMUM EFFICIENCY LMAO (I think only memory but maybe idk lmaoooo)
- Actually char would technically be even less memory... only 8 bits... but nah idk it's w/e. That's just too weird
- I might do it
- Memory accesses are apparently the limiting factor, so using chars or shorts vs ints should be faster!!
- lmaooooo after testing, it is about .2 seconds faster for 1 million calls of getAllMoves with shorts vs ints (or chars vs ints i dont remember) which is the heftiest portion. Honestly not a bad advantage. Not huge, but decent.
- So yes I am using chars instead of shorts, and I couldn't be happier
 
 pieces, for reference
  
@@ -117,9 +110,9 @@ bool inside(char x, char y){
     return x>=0 && x<8 && y>=0 && y<8;
 }
 
-char** createMove(char ystart, char xstart, char yend, char xend, char spKey, char piece){ //wrote this just bc it was getting annoying and honestly kinda bad to create the move thing every time and it'll be really bad for passing into functions and stuff
+char** createMove(char ystart, char xstart, char yend, char xend, char spKey, char piece){ //simplifies creating a new move
     char** move = new char*[3];
-    char* ti=new char[6]; //contiguous memory faster to allocate and destroy (by quite a lot) (and probably to retrieve from memory)
+    char* ti=new char[6]; //contiguous memory faster to allocate and deallocate (by quite a lot) (and probably to retrieve from memory)
     for(int i=0;i<3;i++){
         move[i]=ti+i*2;
     }
@@ -138,18 +131,17 @@ void destroyMove(char** move){ //note that it is actually quite a bit faster (al
 }
 
 void destroyBoard(char** board){
-    //writing it all out so I don't have to use a for loop. Very very minor time save lol at the sacrifice of some mutability (really in the board size) but that won't happen anyways, so assumptions are valid ig.
-    delete[] board[0]; //so because i am technically representing the 1d part as contiguous memory, I don't have to call delete on each index. In fact, it breaks if I do because only the first one really deletes.
+    delete[] board[0]; //so because i am technically representing the 1d part as contiguous memory, I don't have to call delete on each index.
     delete[] board;
 }
 
-void destroyHM(bool** hasMoved){ //again just trying to make not weird undefined behavior is happening causing the random reassignment
+void destroyHM(bool** hasMoved){ //again just being clear and creating a separate function for this even though I could cast to char** and use destroyBoard
     delete[] hasMoved[0];
     delete[]hasMoved;
 }
 
-bool kingInCheck(char** board, bool turn){ //destroy parameter decides whether or not we should get rid of the board memory we were given. Should be used whenever a simMove output is fed directly into this function (which I do a lot). Once again, makes it easier bc don't have to create as many variables and is honestly more readable (debateable) so I'm fine w/ it for now (forever).
-    //kinda like inverses piece moves to find if enemies can move onto itself
+bool kingInCheck(char** board, bool turn){
+    //basically inverses piece moves to find if enemies can move onto itself
     const char opcolor=(turn^1)*6;
     char king[2]; //finding king
     for(int i=0;i<8;i++){
@@ -212,11 +204,12 @@ bool kingInCheck(char** board, bool turn){ //destroy parameter decides whether o
     return false;
 }
 
-bool simMove(char** board, char** move, bool turn){ //turn this sim move into something that does the move without changing hasMoved and then calls kingInCheck to test validity and then undoes the move, all using the actual board array so that I don't have to copy everything and then delete and can just change only a few elements. Should be quite a bit faster
+bool simMove(char** board, char** move, bool turn){
+    //much faster to move then move back rather than creating new board
     char color=turn*6;
     char temp;
     bool res;
-    char piece=board[move[0][0]][move[0][1]]; //in theory redundant, but creates an issue when simulating as rook while in reality queen.
+    char piece=board[move[0][0]][move[0][1]]; //can't trust piece value being fed in when simulating as bishop or rook while queen
     if(move[2][0]==1){ //En Passant
         board[move[0][0]][move[0][1]]=0;
         board[move[1][0]][move[1][1]]=color+move[2][1];
@@ -269,7 +262,6 @@ bool simMove(char** board, char** move, bool turn){ //turn this sim move into so
 }
 
 char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool turn, char enPas){
-    //I haven't written this in here yet, but everytime that I am adding a new move, I need to check that the king isn't in check
     char*** moves=new char**[28]; //I believe this is the most amount of moves from any one piece (27+1 for null)
     char** tempMove;
     char color=turn*6;
@@ -306,7 +298,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                 for(int i=-1;i<2;i+=2){ //captures
                     if(pos[1]+i<8 && pos[1]+i>=0 && board[pos[0]+s][pos[1]+i] && board[pos[0]+s][pos[1]+i]/7==(turn^1)){
                         if(pos[0]+s==(turn^1)*7){
-                            for(int j=2;j<6;j++){
+                            for(int j=2;j<6;j++){ //promotion
                                 tempMove=createMove(pos[0],pos[1],pos[0]+s,pos[1]+i,j,piece);
                                 if(!simMove(board,tempMove,turn))
                                     moves[ind++]=tempMove;
@@ -337,7 +329,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
             char tx,ty;
             for(int i=-1;i<2;i+=2){
                 for(int j=-1;j<2;j+=2){
-                    for(ty=pos[0]+i,tx=pos[1]+j;inside(ty,tx) && !board[ty][tx];ty+=i,tx+=j){
+                    for(ty=pos[0]+i,tx=pos[1]+j;inside(ty,tx) && !board[ty][tx];ty+=i,tx+=j){ //go until hits a piece or edge of the board
                         tempMove=createMove(pos[0],pos[1],ty,tx,0,piece);
                         if(!simMove(board,tempMove,turn))
                             moves[ind++]=tempMove;
@@ -380,7 +372,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
             for(int a=-1;a<2;a+=2){
                 for(int i=0;i<2;i++){
                     j=i^1;
-                    for(ty=pos[0]+a*i,tx=pos[1]+a*j;inside(ty,tx) && !board[ty][tx];ty+=a*i,tx+=a*j){
+                    for(ty=pos[0]+a*i,tx=pos[1]+a*j;inside(ty,tx) && !board[ty][tx];ty+=a*i,tx+=a*j){ //go until hits a piece or edge of board
                         tempMove=createMove(pos[0],pos[1],ty,tx,0,piece);
                         if(!simMove(board,tempMove,turn))
                             moves[ind++]=tempMove;
@@ -425,7 +417,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
                     }
                 }
             }
-            if(!hasMoved[pos[0]][pos[1]]){
+            if(!hasMoved[pos[0]][pos[1]]){ //castling
                 char rpos;
                 bool clear;
                 for(int i=-1;i<2;i+=2){
@@ -462,7 +454,7 @@ char*** getMoves(char** board, bool** hasMoved, char pos[2], char piece, bool tu
 }
 
 char*** getAllMoves(char** board, bool** hasMoved, bool turn, char enPas){
-    char*** moves=new char**[256]; //I am assuming 218 as a more than reasonable upper bound, especially given that nobody has managed to contruct a position with more than 218, and anything even remotely close to that is extremely unlikely to naturally occur. Putting 256 cause char
+    char*** moves=new char**[125]; //I don't think anything will exceed this bound, but can always change it if there are problems...
     char*** tempMoves;
     char tpos[2];
     char tind=0;
@@ -471,7 +463,7 @@ char*** getAllMoves(char** board, bool** hasMoved, bool turn, char enPas){
             if(board[i][j] && board[i][j]/7==turn){
                 tpos[0]=i;
                 tpos[1]=j;
-                tempMoves=getMoves(board,hasMoved,tpos,(board[i][j]-1)%6+1,turn,enPas); //error is here when a piece has no moves because check
+                tempMoves=getMoves(board,hasMoved,tpos,(board[i][j]-1)%6+1,turn,enPas);
                 for(int x=0;tempMoves[x]!=NULL;x++){
                     moves[tind++]=tempMoves[x];
                 }
@@ -489,7 +481,7 @@ void movePiece(char** board, bool** hasMoved, char** move, bool turn){
         board[move[1][0]][move[1][1]]=color+move[2][1];
         board[move[1][0]+2*turn-1][move[1][1]]=0;
     }
-    else if(move[2][0]>=2 && move[2][0]<6){ //Promotion keys. It's just the piece number :P hehe cheeky me
+    else if(move[2][0]>=2 && move[2][0]<6){ //Promotion keys
         board[move[0][0]][move[0][1]]=0;
         board[move[1][0]][move[1][1]]=color+move[2][0];
     }
@@ -644,14 +636,14 @@ char** pgnConvert(char* pgn, char** board, bool** hasMoved, bool turn, char enPa
     }
     //after this it is only 2-4 characters representing (start y) (start x) end y end x (promote piece)
     char ylook,xlook,spKey;
-    ylook=xlook=8; //dont want to go -1 and mess with weird signed vs usigned stuff, so 9 is out of the range.
+    ylook=xlook=8; //dont want to go -1 and mess with weird signed vs usigned stuff, so 8 is out of the range.
     if((pgnClean[0]>='a' && pgnClean[0]<='h') && ((pgnClean[1]>='a' && pgnClean[1]<='h') || (pgnClean[2]>='a' && pgnClean[2]<='h'))){
         xlook=pgnClean[0]-'a';
         if(pgnClean[1]>='1' && pgnClean[1]<='8'){
             ylook=pgnClean[1]-'1'; //second char is extra info for col
         }
     }
-    if(pgnClean[0]>='1' && pgnClean[0]<='8'){ //not sure I can put an else on this statement, so im leaving it like this.
+    if(pgnClean[0]>='1' && pgnClean[0]<='8'){
         ylook=pgnClean[0]-'1';
     }
     if(pgnClean[tind-1]=='Q'){
@@ -670,7 +662,7 @@ char** pgnConvert(char* pgn, char** board, bool** hasMoved, bool turn, char enPa
     char*** moves;
     char pos[2];
     bool found=0;
-    for(int i=0;i<8 && !found;i++){
+    for(int i=0;i<8 && !found;i++){ //search through matching pieces in valid row/col until you find a piece that can move to the square
         if(ylook!=8 && i!=ylook)
             continue;
         for(int j=0;j<8 && !found;j++){
@@ -702,17 +694,17 @@ char** pgnConvert(char* pgn, char** board, bool** hasMoved, bool turn, char enPa
 }
 
 void playGame(){
-    //prob use printf cause chars will be auto printed as ascii characters rather than as numerical values as we want (can case in std::cout)
-    //NOTE: NEED TO ADD THREEFOLD REP AND FIFTY MOVE RULE
+    //prob use printf cause chars will be auto printed as ascii characters rather than as numerical values as we want (or can cast in std::cout)
+    //NOTE: NEED TO ADD THREEFOLD REP AND FIFTY MOVE RULE   (probably use hashmap for threefold rep and just a simple var for fifty move)
     char** board=setUpBoard();
     bool** hasMoved=setUpHM();
     char*** moves;
     displayBoard(board);
     int option, i;
     bool turn=0;
-    char enPas=-3;
+    char enPas=10;
     while(1){
-        moves=getAllMoves(board,hasMoved,turn,enPas); //ignoring en passant for now...
+        moves=getAllMoves(board,hasMoved,turn,enPas);
         for(i=0;moves[i]!=NULL;i++){
             printf("%d:  %d %d    %d %d\n",i,moves[i][0][1],moves[i][0][0],moves[i][1][1],moves[i][1][0]);
         }
@@ -742,8 +734,11 @@ void playGame(){
             break;
         }
         movePiece(board, hasMoved, moves[option], turn);
-        if(moves[option][2][0]==8){ //double pawn move
+        if(moves[option][2][0]==8){ //double pawn move, change en passant space
             enPas=moves[option][1][1];
+        }
+        else{
+            enPas=10;
         }
         displayBoard(board);
         turn^=1;
