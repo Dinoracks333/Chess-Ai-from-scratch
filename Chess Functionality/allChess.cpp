@@ -197,14 +197,8 @@ int main(){
     }
     return 0;
 }
-//13.3 seconds no deletion except for boards and stuff being used internally
-//14.2 seconds for total deletion
-//over 1 million calls to getAllMoves (not getTrueMoves)
-//so yeah obviously the deletion does take a bit to do but yknow. Whatever... It's fine. I'ts like 14% slower :( but it's not that bad. I hope. I can try to do as much micro efficiencies as I want later but I think this part won't be too too bad to do anyways. Ah idk I am a bit sad that it is slower w/ deletion but obv it's gonna be. It's fine.
-//tried using the temp hash function that I have right now and it literally didn't add any time. Like the normal fluctuations were greater.
-//it still is really fast!! Okay, Alex?? There's no need to worry :) so much faster than the python version and to think that the full working version with deletion is not all that much slower is great!
-//okay so down to 13.3 with better deletion! damn that's crazy how using contiguous memory is so much easier for it to allocate and deallocate even on a very small scale. So very nice.
-//I can certainly accept this :)
+
+//about 5 seconds for 1 million calls to getAllMoves (from 13) after making some important optimizations to simMove
 
 /*
  perfectHash metrics:
@@ -215,7 +209,7 @@ knight: .541
 bishop: .447
 pawn: .351
  
-average: .44 seconds for 100 million calls or 440 micro seconds per call. Goddamn.
+average: .44 seconds for 100 million calls or 440 micro seconds per call. Wow.
  I'm pretty sure that is very good. That should be really good for my purposes
  especially. Well, 2^20 is about 1 billion so that's 4 seconds even for my all hash function :( plus then ai has to do its thing
  wait but many, many, many branches will get chopped off by just being evaluated as bad. Okay, then maybe I can get at least depth 20, if not maybe better? I will time everything eventually, obviously.
