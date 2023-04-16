@@ -5,6 +5,8 @@
 //  Created by Alejandro Casillas on 3/31/23.
 //
 
+//WARNING: UNTESTED
+
 #include "chessFuncs.cpp"
 #include "perfectHash.cpp"
 #include "neural_network_base.cpp"
