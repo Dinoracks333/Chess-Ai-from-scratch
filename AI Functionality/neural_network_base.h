@@ -1,12 +1,12 @@
 //
-//  neural_network_bylayer.h
+//  neural_network_base.h
 //  
 //
 //  Created by Alejandro Casillas on 4/9/23.
 //
 
-#ifndef neural_network_bylayer_h
-#define neural_network_bylayer_h
+#ifndef neural_network_base_h
+#define neural_network_base_h
 
 #include <iostream>
 #include <math.h>
@@ -98,4 +98,4 @@ Node** makeLayer(int, const char* actF="", const char* costF="");
 Node** brainRead(char[]); //creates a network from a file output created by brainWrite
 void brainWrite(char[], Node**);
 
-#endif /* neural_network_bylayer_h */
+#endif /* neural_network_base_h */
