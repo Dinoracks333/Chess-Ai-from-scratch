@@ -261,6 +261,13 @@ double* activate(Node** nodes, int layer/*=0*/){ //returns dynamic memory, so ma
     return activate(nodes,layer+1);
 }
 
+void setVals(Node** nodes, double* vals){
+    int size=*((int*) *nodes);
+    for(int i=1;i<size+1;i++){
+        nodes[0][i].val=vals[i-1];
+    }
+}
+
 double getCost(Node** nodes, double* desired){
     int size=*((int*) *nodes+1);
     costFunc cost=*((costFunc*) nodes[size-1]+3);
