@@ -1,6 +1,7 @@
 //
 //  pgnRead.cpp
-//  
+//  Note: pgns are the standard documentation of professional chess games. I have (millions?) of games downloaded on my computer
+//  from chess grandmasters, but I will not upload them in this respository
 //
 //  Created by Alejandro Casillas on 3/30/23.
 //
